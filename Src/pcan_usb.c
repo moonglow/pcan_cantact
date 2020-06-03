@@ -7,10 +7,10 @@
 #include "pcan_protocol.h"
 
 /* PCAN-USB Endpoints */
-#define PCAN_USB_EP_CMDOUT	0x01
-#define PCAN_USB_EP_CMDIN	  0x81
-#define PCAN_USB_EP_MSGOUT	0x02
-#define PCAN_USB_EP_MSGIN	  0x82
+#define PCAN_USB_EP_CMDOUT  0x01
+#define PCAN_USB_EP_CMDIN   0x81
+#define PCAN_USB_EP_MSGOUT  0x02
+#define PCAN_USB_EP_MSGIN   0x82
 
 static uint8_t buffer_cmd[16];
 static uint8_t buffer_data[64];
@@ -198,21 +198,21 @@ static uint8_t  device_setup( USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
 {
   switch( req->bRequest )
   {
-		/* get info */
-		case 0:
-			switch( req->wValue )
-			{
-				case 0: /* bootloader info */
-				{
-					uint8_t bootloader_info[] = { 
-																	0x00, 0x00, 0x08, 0x04, 0x00, 0x08, 0x07, 0x00,
-  																0x04, 0x02, 0xe0, 0x07, 0x01, 0x00, 0x00, 0x00
-																};
-					USBD_CtlSendData( pdev, bootloader_info, sizeof( bootloader_info ) );
-				}
-				break;
-			}
-		break;	
+    /* get info */
+    case 0:
+      switch( req->wValue )
+      {
+        case 0: /* bootloader info */
+        {
+          uint8_t bootloader_info[] = { 
+                                  0x00, 0x00, 0x08, 0x04, 0x00, 0x08, 0x07, 0x00,
+                                  0x04, 0x02, 0xe0, 0x07, 0x01, 0x00, 0x00, 0x00
+                                };
+          USBD_CtlSendData( pdev, bootloader_info, sizeof( bootloader_info ) );
+        }
+        break;
+      }
+    break;  
   }
   return USBD_OK;
 }

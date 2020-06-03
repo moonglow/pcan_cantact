@@ -5,20 +5,20 @@
 #define CAN_FLAG_RTR   (0x40)
 #define CAN_FLAG_EXTID (0x80)
 
-#define CAN_ERROR_FLAG_BUSOFF 	(1<<0)
-#define CAN_ERROR_FLAG_RX_OVF		(1<<1)
-#define CAN_ERROR_FLAG_TX_ERR		(1<<2)
+#define CAN_ERROR_FLAG_BUSOFF    (1<<0)
+#define CAN_ERROR_FLAG_RX_OVF    (1<<1)
+#define CAN_ERROR_FLAG_TX_ERR    (1<<2)
 
 typedef struct
 {
-	uint32_t 	id;
-	uint8_t		data[8];
-	uint8_t 	dlc;
-	uint8_t   flags;
-	/* for self receive */
-	uint8_t 	dummy;
-	/* in pcan ticks */
-	uint16_t timestamp;
+  uint32_t  id;
+  uint8_t   data[8];
+  uint8_t   dlc;
+  uint8_t   flags;
+  /* for self receive */
+  uint8_t   dummy;
+  /* in pcan ticks */
+  uint16_t timestamp;
 }
 can_message_t;
 

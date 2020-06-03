@@ -9,6 +9,6 @@
 
 #define USBD_SUPPORT_USER_STRING_DESC (1)
 #define USBD_DEBUG_LEVEL      0
-#define DEVICE_FS 		        0
+#define DEVICE_FS             0
 
 extern PCD_HandleTypeDef hpcd_USB_FS;

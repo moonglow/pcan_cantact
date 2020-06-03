@@ -274,7 +274,7 @@ USBD_StatusTypeDef USBD_LL_PrepareReceive(USBD_HandleTypeDef *pdev, uint8_t ep_a
   hal_status = HAL_PCD_EP_Receive(pdev->pData, ep_addr, pbuf, size);
      
   usb_status =  USBD_Get_USB_Status(hal_status);
-  	
+    
   return usb_status; 
 }
 
