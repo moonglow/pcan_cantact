@@ -181,10 +181,6 @@ int pcan_can_send_message( const can_message_t *p_msg )
   if( !p_msg )
     return 0;
 
-  /* try to write data to free mailbox */
-  if( pcan_try_send_message( p_msg ) >= 0 )
-    return 0;
-
   uint32_t  tx_head_next = (can_dev.tx_head+1)&(CAN_TX_FIFO_SIZE-1);
   /* overflow ? just skip it */
   if( tx_head_next == can_dev.tx_tail )

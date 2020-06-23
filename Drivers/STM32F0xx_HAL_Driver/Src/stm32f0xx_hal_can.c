@@ -1227,9 +1227,9 @@ HAL_StatusTypeDef HAL_CAN_AddTxMessage(CAN_HandleTypeDef *hcan, CAN_TxHeaderType
       (state == HAL_CAN_STATE_LISTENING))
   {
     /* Check that all the Tx mailboxes are not full */
-    if (((tsr & CAN_TSR_TME0) != 0U) ||
-        ((tsr & CAN_TSR_TME1) != 0U) ||
-        ((tsr & CAN_TSR_TME2) != 0U))
+    if (((tsr & CAN_TSR_TME0) != 0U)   ||
+        ((tsr & CAN_TSR_TME1) != 0U)   /*||
+        ((tsr & CAN_TSR_TME2) != 0U)*/ )
     {
       /* Select an empty transmit mailbox */
       transmitmailbox = (tsr & CAN_TSR_CODE) >> CAN_TSR_CODE_Pos;
