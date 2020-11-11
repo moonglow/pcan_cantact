@@ -15,8 +15,8 @@ enum e_pcan_led_mode
   LED_MODE_NONE,
   LED_MODE_ON,
   LED_MODE_OFF,
-  LED_MODE_BLINK_FAST = 50,
-  LED_MODE_BLINK_SLOW = 200,
+  LED_MODE_BLINK_FAST,
+  LED_MODE_BLINK_SLOW,
 };
 
 void pcan_led_init( void );

@@ -13,8 +13,8 @@ static struct
 }
 led_mode_array[LED_TOTAL] = { 0 };
 
-#define IOPIN_TX    GPIO_PIN_0
-#define IOPIN_RX    GPIO_PIN_1
+#define IOPIN_TX    GPIO_PIN_1
+#define IOPIN_RX    GPIO_PIN_0
 #define IOPIN_PORT  GPIOB
 
 void pcan_led_init( void )
@@ -33,19 +33,20 @@ void pcan_led_init( void )
 void pcan_led_set_mode( int led, int mode, uint16_t arg )
 {
   assert( led < LED_TOTAL );
-
-  if( led_mode_array[led].mode == mode )
-    return;
+  uint16_t ts = pcan_timestamp_millis();
 
   led_mode_array[led].mode = mode;
-  led_mode_array[led].timestamp = pcan_timestamp_millis()|1;
+  if( !led_mode_array[led].timestamp )
+  {
+    led_mode_array[led].timestamp = ts|1;
+  }
   led_mode_array[led].delay = 0;
 
   /* set guard time */
-  if( arg && ( mode == LED_MODE_BLINK_FAST || mode == LED_MODE_BLINK_SLOW ) )
+  if( mode == LED_MODE_BLINK_FAST || mode == LED_MODE_BLINK_SLOW )
   {
-    arg += led_mode_array[led].timestamp;
-    arg |= 1;
+    led_mode_array[led].delay = ( mode == LED_MODE_BLINK_FAST ) ? 50: 200;
+    arg = arg?(ts + arg)|1:0;
   }
 
   led_mode_array[led].arg  = arg;
@@ -94,11 +95,11 @@ void pcan_led_poll( void )
       case LED_MODE_BLINK_FAST:
       case LED_MODE_BLINK_SLOW:
         led_mode_array[i].state ^= 1;
-        led_mode_array[i].timestamp = ts_ms|1;
-        led_mode_array[i].delay = led_mode_array[i].mode;
+        led_mode_array[i].timestamp += led_mode_array[i].delay;
+        led_mode_array[i].timestamp |= 1;
         if( led_mode_array[i].arg && ( led_mode_array[i].arg <= ts_ms ) )
         {
-          pcan_led_set_mode( i, LED_MODE_ON, 0 );
+          pcan_led_set_mode( i, LED_MODE_OFF, 0 );
         }
       break;
     }
