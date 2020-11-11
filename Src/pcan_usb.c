@@ -5,17 +5,12 @@
 #include "usbd_conf.h"
 #include "usbd_helper.h"
 #include "pcan_protocol.h"
+#include "pcan_led.h"
+#include "pcan_usb.h"
 
-/* PCAN-USB Endpoints */
-#define PCAN_USB_EP_CMDOUT  0x01
-#define PCAN_USB_EP_CMDIN   0x81
-#define PCAN_USB_EP_MSGOUT  0x02
-#define PCAN_USB_EP_MSGIN   0x82
-
-static uint8_t buffer_cmd[16];
-static uint8_t buffer_data[64];
 USBD_HandleTypeDef hUsbDeviceFS;
 extern USBD_DescriptorsTypeDef FS_Desc;
+static struct t_class_data pcan_data = { 0 };
 
 struct t_pcan_description
 {
@@ -134,11 +129,11 @@ static uint8_t device_init( USBD_HandleTypeDef *pdev, uint8_t cfgidx )
       pdev->ep_out[ep_addr & EP_ADDR_MSK].is_used = 1;
   }
     
-  pdev->pClassData = (void*)1;
+  pdev->pClassData = (void*)&pcan_data;
 
 
-  USBD_LL_PrepareReceive( pdev, PCAN_USB_EP_CMDOUT, buffer_cmd, sizeof( buffer_cmd ) );
-  USBD_LL_PrepareReceive( pdev, PCAN_USB_EP_MSGOUT, buffer_data, sizeof( buffer_data ) );
+  USBD_LL_PrepareReceive( pdev, PCAN_USB_EP_CMDOUT, pcan_data.buffer_cmd, sizeof( pcan_data.buffer_cmd ) );
+  USBD_LL_PrepareReceive( pdev, PCAN_USB_EP_MSGOUT, pcan_data.buffer_data, sizeof( pcan_data.buffer_data ) );
   
   return USBD_OK;
 }
@@ -209,6 +204,13 @@ static uint8_t  device_setup( USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
                                   0x04, 0x02, 0xe0, 0x07, 0x01, 0x00, 0x00, 0x00
                                 };
           USBD_CtlSendData( pdev, bootloader_info, sizeof( bootloader_info ) );
+
+          pcan_led_set_mode( LED_CH0_RX, LED_MODE_ON, 0 );
+          pcan_led_set_mode( LED_CH0_TX, LED_MODE_ON, 0 );
+
+          /* reset endpoints */
+          pcan_flush_ep( PCAN_USB_EP_MSGIN );
+          pcan_flush_ep( PCAN_USB_EP_CMDIN );
         }
         break;
       }
@@ -226,24 +228,39 @@ static uint8_t device_ep0_rx_ready( USBD_HandleTypeDef *pdev )
 /* data was sent to PC */
 static uint8_t device_data_in( USBD_HandleTypeDef *pdev, uint8_t epnum )
 {
-  (void)pdev;
-  (void)epnum;
-
-  PCD_HandleTypeDef *hpcd = pdev->pData;
-
-  if( pdev->pClassData == NULL )
+  struct t_class_data *p_data = (void*)pdev->pClassData;
+  
+  if( pdev->pClassData == 0 )
     return USBD_FAIL;
-
+  
+/* use ZLP */
+#if 0
+  PCD_HandleTypeDef *hpcd = pdev->pData;
   uint32_t len = pdev->ep_in[epnum].total_length;
-  if( len && ( len % hpcd->IN_ep[epnum].maxpacket ) == 0U )
+  /* packet is multiple of maxpacket, so tell host what all transfer is done */
+  if( len && ( len % hpcd->IN_ep[epnum].maxpacket ) == 0 )
   {
-    if( epnum == PCAN_USB_EP_CMDIN )
+    /* update the packet total length */
+    pdev->ep_in[epnum].total_length = 0;
+    /* send ZLP */
+    if( !p_data->ep_tx_data_pending[epnum] )
     {
-      USBD_LL_Transmit( pdev, epnum, NULL, 0U );
+      USBD_LL_Transmit( pdev, epnum, NULL, 0 );
+    }
+    else
+    {
+      p_data->ep_tx_in_use[epnum] = 0;
     }
   }
+  else
+  {
+    /* tx done, no active transfer */
+    p_data->ep_tx_in_use[epnum] = 0;
+  }
+#else
   pdev->ep_in[epnum].total_length = 0U;
-
+  p_data->ep_tx_in_use[epnum] = 0;
+#endif
   return USBD_OK;
 }
 
@@ -260,13 +277,13 @@ static uint8_t device_data_out( USBD_HandleTypeDef *pdev, uint8_t epnum )
 
   if( epnum == PCAN_USB_EP_CMDOUT )
   {
-    pcan_protocol_process_command( buffer_cmd, size );
-    USBD_LL_PrepareReceive( pdev, PCAN_USB_EP_CMDOUT, buffer_cmd, sizeof( buffer_cmd ) );
+    pcan_protocol_process_command( pcan_data.buffer_cmd, size );
+    USBD_LL_PrepareReceive( pdev, PCAN_USB_EP_CMDOUT, pcan_data.buffer_cmd, sizeof( pcan_data.buffer_cmd ) );
   }
   else if( epnum == PCAN_USB_EP_MSGOUT )
   {
-    pcan_protocol_process_data( buffer_data, size );
-    USBD_LL_PrepareReceive( pdev, PCAN_USB_EP_MSGOUT, buffer_data, sizeof( buffer_data ) );
+    pcan_protocol_process_data( pcan_data.buffer_data, size );
+    USBD_LL_PrepareReceive( pdev, PCAN_USB_EP_MSGOUT, pcan_data.buffer_data, sizeof( pcan_data.buffer_data ) );
   }
   else
   {
@@ -356,4 +373,51 @@ void pcan_usb_init( void )
   {
     assert( 0 );
   }
+}
+
+int pcan_flush_ep( uint8_t ep )
+{
+  USBD_HandleTypeDef *pdev = &hUsbDeviceFS;
+  struct t_class_data *p_data = (void*)pdev->pClassData;
+
+  p_data->ep_tx_in_use[ep&0x0F] = 0;
+  return USBD_LL_FlushEP( pdev, ep ) == USBD_OK;
+}
+
+int pcan_flush_data( struct t_m2h_fsm *pfsm, void *src, int size )
+{
+  USBD_HandleTypeDef *pdev = &hUsbDeviceFS;
+  struct t_class_data *p_data = (void*)pdev->pClassData;
+
+  if( !p_data )
+    return 0;
+
+  switch( pfsm->state )
+  {
+    case 1:
+      if( p_data->ep_tx_in_use[pfsm->ep_addr&0x0F] )
+      {
+        p_data->ep_tx_data_pending[pfsm->ep_addr&0x0F] = size;
+        return 0;
+      }
+      pfsm->state = 0;
+      /* fall through */
+    case 0:
+      assert( p_data->ep_tx_in_use[pfsm->ep_addr&0x0F] == 0 );
+      if( size > pfsm->dbsize )
+        break;
+      memcpy( pfsm->pdbuf, src, size );
+      p_data->ep_tx_in_use[pfsm->ep_addr&0x0F] = 1;
+      /* prepare data transmit */
+      pdev->ep_in[pfsm->ep_addr & EP_ADDR_MSK].total_length = size;
+      /* no pending data */
+      p_data->ep_tx_data_pending[pfsm->ep_addr&0x0F] = 0;
+      USBD_LL_Transmit( pdev, pfsm->ep_addr, pfsm->pdbuf, size );
+      
+      pfsm->total_tx += size;
+      pfsm->state = 1;
+      return 1;
+  }
+  
+  return 0;
 }
