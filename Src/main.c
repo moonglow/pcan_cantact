@@ -26,10 +26,13 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
 
-  /* HSE = 16MHZ */
+#if( HSE_VALUE == 16000000u )
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL3;
-  /* HSE = 8MHZ */
-  //RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
+#elif( HSE_VALUE == 8000000u )
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
+#else
+#error invalid HSE_VALUE
+#endif
   RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV1;
 
   HAL_RCC_OscConfig(&RCC_OscInitStruct);
@@ -63,6 +66,9 @@ int main( void )
   pcan_led_init();
   pcan_timestamp_init();
   pcan_protocol_init();
+
+  pcan_led_set_mode( LED_CH0_RX, LED_MODE_BLINK_SLOW, 0 );
+  pcan_led_set_mode( LED_CH0_TX, LED_MODE_BLINK_SLOW, 0 );
 
   for(;;)
   {

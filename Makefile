@@ -9,7 +9,8 @@
 ######################################
 # target
 ######################################
-TARGET = pcan_cantact_hw
+CRYSTAL_FREQ_MHZ = 8
+TARGET = pcan_cantact_hw_$(CRYSTAL_FREQ_MHZ)MHz
 
 
 ######################################
@@ -102,8 +103,8 @@ AS_DEFS =
 C_DEFS =  \
 -DUSE_HAL_DRIVER \
 -DSTM32F042x6 \
--DNDEBUG
-
+-DNDEBUG \
+-DHSE_VALUE=$(CRYSTAL_FREQ_MHZ)000000
 
 # AS includes
 AS_INCLUDES = 
