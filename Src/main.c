@@ -4,9 +4,6 @@
 #include "pcan_protocol.h"
 #include "pcan_usb.h"
 
-// remove to use 48 MHz internal clock
-/* #define EXTERNAL_CLOCK 16 */
-
 void HAL_MspInit( void )
 {
   __HAL_RCC_SYSCFG_CLK_ENABLE();
