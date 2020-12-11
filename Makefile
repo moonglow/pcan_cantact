@@ -93,7 +93,8 @@ AS_DEFS =
 C_DEFS =  \
 -DUSE_HAL_DRIVER \
 -DSTM32F042x6 \
--DNDEBUG
+-DNDEBUG \
+$(BOARD_DEFS)
 
 
 # AS includes

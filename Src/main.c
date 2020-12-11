@@ -31,8 +31,10 @@ void SystemClock_Config(void)
 #if EXTERNAL_CLOCK == 16
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL3;
   /* HSE = 8MHZ */
-#else
+#elif EXTERNAL_CLOCK == 8
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
+#else
+#error invalid HSE_VALUE
 #endif
   RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV1;
 
@@ -92,6 +94,9 @@ int main( void )
   pcan_led_init();
   pcan_timestamp_init();
   pcan_protocol_init();
+
+  pcan_led_set_mode( LED_CH0_RX, LED_MODE_BLINK_SLOW, 0 );
+  pcan_led_set_mode( LED_CH0_TX, LED_MODE_BLINK_SLOW, 0 );
 
   for(;;)
   {
