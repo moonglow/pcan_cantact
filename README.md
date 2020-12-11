@@ -16,5 +16,5 @@ License
 WTFPL
 
 
-[CANtact]: <https://linklayer.github.io/cantact/>
+[CANtact]: <https://github.com/linklayer/cantact-hw>
 [CANable]: <https://canable.io/>

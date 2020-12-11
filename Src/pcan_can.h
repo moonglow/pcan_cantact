@@ -30,3 +30,4 @@ void pcan_can_install_rx_callback( void (*cb)( can_message_t * ) );
 void pcan_can_install_error_callback( void (*cb)( uint8_t, uint8_t, uint8_t ) );
 void pcan_can_set_bus_active( uint16_t mode );
 void pcan_can_set_silent( uint8_t silent_mode );
+void pcan_can_set_loopback( uint8_t loopback );

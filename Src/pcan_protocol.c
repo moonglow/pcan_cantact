@@ -48,58 +48,90 @@ pcan_device =
   },
 };
 
-#pragma pack(push, 1)
-#define PCAN_MAX_RECORD_SIZE (62)
-typedef struct
-{
-  /* type: 0x02 */
-  uint8_t header;
-  /* slot record count */
-  uint8_t rec_count;
-  /* record data */
-  uint8_t data[64-2];
-}
-PCAN_RECORD_ENTRY;
-
+#define BLOCK_SIZE  (64)
+#define HEADER_SIZE (2)
+#define PCAN_MAX_RECORD_SIZE (BLOCK_SIZE*16)
 typedef struct
 {
   /* raw data array */
-  PCAN_RECORD_ENTRY buffer;
+  uint8_t buffer[PCAN_MAX_RECORD_SIZE];
   /* ts counter, need to provide correct timestamp correction ( 2 or 1 byte ) */
-  uint8_t ts_counter;
-  uint8_t pos;
+  uint16_t ts_counter;
+  uint16_t pos;
 }
 PCAN_RECORD_BUFFER_EX;
-#pragma pack(pop)
+
+static uint8_t temp_data_buffer[PCAN_MAX_RECORD_SIZE] = { 0 };
+static struct t_m2h_fsm data_fsm = 
+{
+  .state = 0,
+  .ep_addr = PCAN_USB_EP_MSGIN,
+  .pdbuf = temp_data_buffer,
+  .dbsize = sizeof( temp_data_buffer ),
+};
 
 static PCAN_RECORD_BUFFER_EX pcan_records;
 
-void pcan_record_buffer_init( PCAN_RECORD_BUFFER_EX *prec )
+void pcan_record_write_header( uint8_t *p )
 {
-  memset( prec, 0x00, sizeof( PCAN_RECORD_BUFFER_EX ) );
-
-  prec->buffer.header = 0x02;
-  prec->buffer.rec_count = 0x00;
+  p[0] = 0x02; /* record header */
+  p[1] = 0x00; /* record count */
 }
 
 void pcan_record_buffer_reset( PCAN_RECORD_BUFFER_EX *prec )
 {
-  prec->buffer.rec_count = 0x00;
-  prec->pos = 0;
+  pcan_record_write_header( prec->buffer );
   prec->ts_counter = 0;
+  prec->pos = HEADER_SIZE;
+}
+
+/* request free slot for specific amount of data */
+uint8_t *pcan_record_buffer_request( PCAN_RECORD_BUFFER_EX *prec, uint16_t size )
+{
+  if( size > (BLOCK_SIZE-HEADER_SIZE) )
+    return 0;
+  uint16_t unused = BLOCK_SIZE - ( prec->pos & (BLOCK_SIZE-1) );
+  /* allocate new slot ? */
+  if( unused < size )
+  {
+    /* align data to next slot bound */
+    uint8_t next = ( prec->pos + (BLOCK_SIZE-1) ) & (~((BLOCK_SIZE-1)));
+    if( (next+HEADER_SIZE) >= PCAN_MAX_RECORD_SIZE )
+      return 0;
+    memset( &prec->buffer[next], 0x00, BLOCK_SIZE );
+    pcan_record_write_header( &prec->buffer[next] );
+    next += 2;
+    prec->pos = next;
+    /* reset ts_counter for next buffer */
+    prec->ts_counter = 0;
+  }
+
+  if( ( prec->pos + size ) > PCAN_MAX_RECORD_SIZE )
+    return (void*)0;
+
+  return &prec->buffer[prec->pos];
+}
+
+void pcan_record_buffer_commit( PCAN_RECORD_BUFFER_EX *prec, uint16_t size )
+{
+  uint16_t pos = prec->pos&(~(BLOCK_SIZE-1));
+  /* increse record count */
+  ++prec->buffer[pos+1];
+  prec->pos += size;
 }
 
 uint16_t pcan_record_buffer_flush( PCAN_RECORD_BUFFER_EX *prec )
 {
-  uint16_t flushed_size;
   uint16_t ts_ticks = pcan_timestamp_ticks();
+  int res, flush_size;
 
-  if( !prec->pos )
+  if( prec->pos <= HEADER_SIZE )
   {
     /* try to send ZLP, original 800 */
     if( pcan_device.last_flush && (((uint16_t)(ts_ticks - pcan_device.last_flush)) >= PCAN_TICKS_FROM_US( 800 )) )
     {
-      if( pcan_usb_send_data_buffer( "", 0 ) != 0xFFFF )
+      res = pcan_flush_data( &data_fsm, 0, 0 );
+      if( res )
       {
         pcan_device.last_flush = 0;
       }
@@ -107,31 +139,16 @@ uint16_t pcan_record_buffer_flush( PCAN_RECORD_BUFFER_EX *prec )
     return 0;
   }
 
-  flushed_size = pcan_usb_send_data_buffer( &prec->buffer, sizeof( prec->buffer ) );
-  if( flushed_size == sizeof( prec->buffer ) )
+  flush_size = ( prec->pos + (BLOCK_SIZE-1) ) & (~((BLOCK_SIZE-1)));
+  res = pcan_flush_data( &data_fsm, prec->buffer, flush_size );
+  if( res )
   {
-    pcan_device.last_flush = ts_ticks;
     pcan_record_buffer_reset( prec );
+    pcan_device.last_flush = ts_ticks;
+    return 1;
   }
- 
-  return flushed_size;
-}
 
-/* request free slot for specific amount of data */
-uint8_t *pcan_record_buffer_request( PCAN_RECORD_BUFFER_EX *prec, uint16_t size )
-{
-  /* try to find free slot for specific data */
-  uint16_t pos = prec->pos;
-  if( ( pos + size ) > PCAN_MAX_RECORD_SIZE )
-    return (void*)0;
-
-  return &prec->buffer.data[pos];
-}
-
-void pcan_record_buffer_commit( PCAN_RECORD_BUFFER_EX *prec, uint16_t size )
-{
-  prec->buffer.rec_count++;
-  prec->pos += size;
+  return 0;
 }
 
 #if 0
@@ -516,8 +533,8 @@ void pcan_protocol_process_command( uint8_t *ptr, uint16_t size )
             pcan_timesync_event( &pcan_records );
           }
           /* led state */
-          pcan_led_set_mode( LED_CH0_TX, pcan_device.bus_active ? LED_MODE_ON:LED_MODE_OFF, 0 );
-          pcan_led_set_mode( LED_CH0_RX, pcan_device.bus_active ? LED_MODE_ON:LED_MODE_OFF, 0 );
+          pcan_led_set_mode( LED_CH0_TX, pcan_device.bus_active ? LED_MODE_OFF:LED_MODE_ON, 0 );
+          pcan_led_set_mode( LED_CH0_RX, pcan_device.bus_active ? LED_MODE_OFF:LED_MODE_ON, 0 );
         break;
         /* set device id 0-255 */
         case 0x04:
@@ -646,8 +663,7 @@ void pcan_protocol_process_data( uint8_t *ptr, uint16_t size )
 
 void pcan_protocol_init( void )
 {
-  pcan_record_buffer_init( &pcan_records );
-
+  pcan_record_buffer_reset( &pcan_records );
   pcan_can_init();
   pcan_can_install_rx_callback( pcan_rx_message  );
   pcan_can_install_error_callback( pcan_can_error );
