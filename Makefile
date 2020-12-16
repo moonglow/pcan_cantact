@@ -9,24 +9,14 @@
 ######################################
 # target
 ######################################
-CRYSTAL_FREQ_MHZ = 8
-TARGET = pcan_cantact_hw_$(CRYSTAL_FREQ_MHZ)MHz
-
-
-######################################
-# building variables
-######################################
-# debug build?
-DEBUG = 0
-# optimization
-OPT = -Os
+TARGET = pcan_$(BOARD)_hw
 
 
 #######################################
 # paths
 #######################################
 # Build path
-BUILD_DIR = build
+BUILD_DIR = build-$(BOARD)
 
 ######################################
 # source
@@ -104,7 +94,8 @@ C_DEFS =  \
 -DUSE_HAL_DRIVER \
 -DSTM32F042x6 \
 -DNDEBUG \
--DHSE_VALUE=$(CRYSTAL_FREQ_MHZ)000000
+$(BOARD_DEFS)
+
 
 # AS includes
 AS_INCLUDES = 
@@ -121,7 +112,7 @@ C_INCLUDES =  \
 # compile gcc flags
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fno-common -fdata-sections -ffunction-sections
 
-CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -Wpedantic -Wextra -fno-common -fdata-sections -ffunction-sections
+CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -Wpedantic -Wextra -fno-common -fdata-sections -ffunction-sections $(BOARD_FLAGS)
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -gdwarf-2
@@ -143,9 +134,22 @@ LIBS = -lc -lm -lnosys
 LIBDIR = 
 LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 
-# default action: build all
-all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
+.PHONY : all
 
+# default action: build all
+all: cantact-16 cantact-8 entree canable
+
+cantact-16: 
+	$(MAKE) BOARD=cantact-16 DEBUG=0 OPT=-Os BOARD_FLAGS=-DEXTERNAL_CLOCK=16 elf hex bin
+
+cantact-8: 
+	$(MAKE) BOARD=cantact-8 DEBUG=0 OPT=-Os BOARD_FLAGS=-DEXTERNAL_CLOCK=8 elf hex bin
+
+entree: 
+	$(MAKE) BOARD=entree DEBUG=0 OPT=-Os elf hex bin
+
+canable: 
+	$(MAKE) BOARD=canable DEBUG=0 OPT=-Os elf hex bin
 
 #######################################
 # build the application
@@ -156,6 +160,10 @@ vpath %.c $(sort $(dir $(C_SOURCES)))
 # list of ASM program objects
 OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES:.s=.o)))
 vpath %.s $(sort $(dir $(ASM_SOURCES)))
+
+ELF_TARGET = $(BUILD_DIR)/$(TARGET).elf
+BIN_TARGET = $(BUILD_DIR)/$(TARGET).bin
+HEX_TARGET = $(BUILD_DIR)/$(TARGET).hex
 
 $(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR) 
 	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
@@ -176,11 +184,17 @@ $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 $(BUILD_DIR):
 	mkdir $@		
 
+bin: $(BIN_TARGET)
+
+elf: $(ELF_TARGET)
+
+hex: $(HEX_TARGET)
+
 #######################################
 # clean up
 #######################################
 clean:
-	-rm -fR $(BUILD_DIR)
+	-rm -fR $(BUILD_DIR)*
   
 #######################################
 # dependencies
