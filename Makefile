@@ -140,10 +140,10 @@ LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BU
 all: cantact-16 cantact-8 entree canable
 
 cantact-16: 
-	$(MAKE) BOARD=cantact-16 DEBUG=0 OPT=-Os BOARD_FLAGS=-DEXTERNAL_CLOCK=16 elf hex bin
+	$(MAKE) BOARD=cantact-16 DEBUG=0 OPT=-Os BOARD_FLAGS='-DEXTERNAL_CLOCK=16 -DHSE_VALUE=16000000' elf hex bin
 
 cantact-8: 
-	$(MAKE) BOARD=cantact-8 DEBUG=0 OPT=-Os BOARD_FLAGS=-DEXTERNAL_CLOCK=8 elf hex bin
+	$(MAKE) BOARD=cantact-8 DEBUG=0 OPT=-Os BOARD_FLAGS='-DEXTERNAL_CLOCK=8 -DHSE_VALUE=8000000' elf hex bin
 
 entree: 
 	$(MAKE) BOARD=entree DEBUG=0 OPT=-Os elf hex bin
