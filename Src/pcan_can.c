@@ -5,7 +5,7 @@
 #include "pcan_can.h"
 #include "pcan_timestamp.h"
 
-#define CAN_TX_FIFO_SIZE (32)
+#define CAN_TX_FIFO_SIZE (100)
 static CAN_HandleTypeDef g_hcan = { .Instance = CAN };
 #define INTERNAL_CAN_IT_FLAGS          (  CAN_IT_TX_MAILBOX_EMPTY |\
                                           CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_RX_FIFO1_MSG_PENDING |\
@@ -62,7 +62,7 @@ void pcan_can_init(void)
   g_hcan.Init.AutoWakeUp = DISABLE;
   g_hcan.Init.AutoRetransmission = ENABLE;
   g_hcan.Init.ReceiveFifoLocked = DISABLE;
-  g_hcan.Init.TransmitFifoPriority = DISABLE;
+  g_hcan.Init.TransmitFifoPriority = ENABLE;
 
   if( HAL_CAN_Init( &g_hcan ) != HAL_OK )
   {
@@ -173,7 +173,10 @@ static void pcan_can_flush_tx( void )
   if( pcan_try_send_message( p_msg ) < 0 )
     return;
   /* update fifo index */
-  can_dev.tx_tail = (can_dev.tx_tail+1)&(CAN_TX_FIFO_SIZE-1);
+  uint32_t tail = can_dev.tx_tail+1;
+  if( tail == CAN_TX_FIFO_SIZE )
+    tail = 0;
+  can_dev.tx_tail = tail;
 }
 
 int pcan_can_send_message( const can_message_t *p_msg )
@@ -181,16 +184,18 @@ int pcan_can_send_message( const can_message_t *p_msg )
   if( !p_msg )
     return 0;
 
-  uint32_t  tx_head_next = (can_dev.tx_head+1)&(CAN_TX_FIFO_SIZE-1);
+  uint32_t head = can_dev.tx_head+1;
+  if( head == CAN_TX_FIFO_SIZE )
+    head = 0;
   /* overflow ? just skip it */
-  if( tx_head_next == can_dev.tx_tail )
+  if( head == can_dev.tx_tail )
   {
     ++can_dev.tx_ovfs;
     return -1;
   }
 
   can_dev.tx_fifo[can_dev.tx_head] = *p_msg;
-  can_dev.tx_head = tx_head_next;
+  can_dev.tx_head = head;
 
   return 0;
 }
@@ -218,9 +223,11 @@ void pcan_can_set_bus_active( uint16_t mode )
   if( mode )
   {
     HAL_CAN_Start( &g_hcan );
+    HAL_CAN_AbortTxRequest( &g_hcan, CAN_TX_MAILBOX0 | CAN_TX_MAILBOX1 | CAN_TX_MAILBOX2 );
   }
   else
   {
+    HAL_CAN_AbortTxRequest( &g_hcan, CAN_TX_MAILBOX0 | CAN_TX_MAILBOX1 | CAN_TX_MAILBOX2 );
     HAL_CAN_Stop( &g_hcan );
   }
 }

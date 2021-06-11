@@ -195,7 +195,10 @@ hex: $(HEX_TARGET)
 #######################################
 clean:
 	-rm -fR $(BUILD_DIR)*
-  
+
+clean_obj:
+	-rm -f $(BUILD_DIR)*/*.o $(BUILD_DIR)*/*.d $(BUILD_DIR)*/*.lst
+
 #######################################
 # dependencies
 #######################################

@@ -50,7 +50,7 @@ pcan_device =
 
 #define BLOCK_SIZE  (64)
 #define HEADER_SIZE (2)
-#define PCAN_MAX_RECORD_SIZE (BLOCK_SIZE*16)
+#define PCAN_MAX_RECORD_SIZE (BLOCK_SIZE*14)
 typedef struct
 {
   /* raw data array */
@@ -317,6 +317,7 @@ static void pcan_can_error( uint8_t err, uint8_t rx_err, uint8_t tx_err )
   }
 }
 
+#define WAIT_FOR_TXSLOTS 1
 static uint8_t pcan_decode_data_frame( uint8_t *ptr, uint16_t size, uint8_t flags  )
 {
   can_message_t msg = { 0 };
@@ -391,12 +392,31 @@ static uint8_t pcan_decode_data_frame( uint8_t *ptr, uint16_t size, uint8_t flag
 
   pcan_led_set_mode( LED_CH0_TX, LED_MODE_BLINK_FAST, 237 );
 
+#if WAIT_FOR_TXSLOTS
+  const uint16_t ts_poll = pcan_timestamp_ticks();
+  /* need more time to send data... ? */
+  while( pcan_can_send_message( &msg ) < 0 )
+  {
+    /* USB will get NACK and we will not miss other data */
+    pcan_can_poll();
+    uint16_t ts_diff = pcan_timestamp_ticks() - ts_poll;
+    /* we can't tramsit couse bus off or timeout ? */
+    if( ( pcan_device.can.err & PCAN_USB_ERROR_BUS_OFF ) ||
+        ( ts_diff >= PCAN_TICKS_FROM_US( 1000000u ) ) )
+    {
+      /* tx buffer overflow, drop all data */
+      pcan_device.can.err |= PCAN_USB_ERROR_TXFULL;
+      return size;
+    }
+  }
+#else
   if( pcan_can_send_message( &msg ) < 0 )
   {
-    /* tx queue overflow ? */
+    /* tx buffer overflow, drop all data */
     pcan_device.can.err |= PCAN_USB_ERROR_TXFULL;
     return size;
   }
+#endif
   /* return back to PC */
   if( srr_flag )
   {

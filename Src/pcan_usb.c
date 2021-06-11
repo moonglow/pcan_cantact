@@ -321,19 +321,18 @@ static uint8_t *device_get_device_qualifier( uint16_t *length )
 
 static uint8_t *device_get_user_string( USBD_HandleTypeDef *pdev, uint8_t index, uint16_t *length )
 {
-  __ALIGN_BEGIN static uint8_t USBD_StrDesc[64] __ALIGN_END;
-
   UNUSED( pdev );
-
-  switch( index )
+  if( index == 10 )
   {
-    case 10:
-      USBD_GetString((uint8_t *)"PEAK-System Technik GmbH", USBD_StrDesc, length);
-    break;
-    default:
-      return 0;
+    __ALIGN_BEGIN static const uint16_t vendor_descriptor[1+24] __ALIGN_END = 
+    {
+      0x0332,
+      'P','E','A','K','-','S','y','s','t','e','m',' ','T','e','c','h','n','i','k',' ','G','m','b','H'
+    };
+    *length = sizeof( vendor_descriptor );
+    return (uint8_t*)vendor_descriptor;
   }
-  return USBD_StrDesc;
+  return 0;
 }
 
 USBD_ClassTypeDef usbd_pcan =

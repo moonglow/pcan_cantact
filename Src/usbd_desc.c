@@ -44,9 +44,6 @@ __ALIGN_BEGIN uint8_t USBD_LangIDDesc[USB_LEN_LANGID_STR_DESC] __ALIGN_END =
      HIBYTE(USBD_LANGID_STRING)
 };
 
-/* internal string descriptor */
-__ALIGN_BEGIN uint8_t USBD_StrDesc[USBD_MAX_STR_DESC_SIZ] __ALIGN_END;
-
 uint8_t * USBD_FS_DeviceDescriptor(USBD_SpeedTypeDef speed, uint16_t *length)
 {
   UNUSED(speed);
@@ -65,20 +62,22 @@ uint8_t * USBD_FS_LangIDStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *length)
 uint8_t * USBD_FS_HugeStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *length)
 {
   UNUSED( speed );
-
-  memset( USBD_StrDesc, 0x00, 254 );
-  *length = 252+2;
-  USBD_StrDesc[0] = ( 252 + 2 );
-  USBD_StrDesc[1] = USB_DESC_TYPE_STRING;
-  return USBD_StrDesc;
+  __ALIGN_BEGIN static const uint16_t huge_descriptor[1+126] __ALIGN_END = { 0x03FE };
+  *length = sizeof( huge_descriptor );
+  return (uint8_t*)huge_descriptor;
 }
 
 uint8_t * USBD_FS_ConfigStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *length)
 {
   UNUSED(speed);
-  
-  USBD_GetString((uint8_t *)"PCAN-USB", USBD_StrDesc, length);
-  return USBD_StrDesc;
+
+  __ALIGN_BEGIN static const uint16_t cfg_descriptor[1+8] __ALIGN_END = 
+  { 
+    0x0312, 
+    'P','C','A','N','-','U','S','B' 
+  };
+  *length = sizeof( cfg_descriptor );
+  return (uint8_t*)cfg_descriptor;
 }
 
 USBD_DescriptorsTypeDef FS_Desc =
