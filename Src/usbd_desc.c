@@ -62,7 +62,8 @@ uint8_t * USBD_FS_LangIDStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *length)
 uint8_t * USBD_FS_HugeStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *length)
 {
   UNUSED( speed );
-  __ALIGN_BEGIN static const uint16_t huge_descriptor[1+126] __ALIGN_END = { 0x03FE };
+  /* little hack to save some flash memory */
+  __ALIGN_BEGIN static const uint16_t huge_descriptor[1/*+126*/] __ALIGN_END = { 0x03FE };
   *length = sizeof( huge_descriptor );
   return (uint8_t*)huge_descriptor;
 }
