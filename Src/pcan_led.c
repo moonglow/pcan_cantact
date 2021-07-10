@@ -13,17 +13,25 @@ static struct
 }
 led_mode_array[LED_TOTAL] = { 0 };
 
-#define IOPIN_TX    GPIO_PIN_1
-#define IOPIN_RX    GPIO_PIN_0
-#define IOPIN_PORT  GPIOB
+#if defined(HW_CANABLE)
+  #define IOPIN_TX    GPIO_PIN_1
+  #define IOPIN_RX    GPIO_PIN_0
+  #define IOPIN_PORT  GPIOA
+#elif defined(HW_UC12)
+  #define IOPIN_TX    GPIO_PIN_11
+  #define IOPIN_RX    GPIO_PIN_5
+  #define IOPIN_PORT  GPIOB
+#else
+  #define IOPIN_TX    GPIO_PIN_1
+  #define IOPIN_RX    GPIO_PIN_0
+  #define IOPIN_PORT  GPIOB
+#endif
 
 void pcan_led_init( void )
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-
-  GPIO_InitStruct.Pin = IOPIN_TX |IOPIN_RX;
+  GPIO_InitStruct.Pin = IOPIN_TX | IOPIN_RX;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -55,6 +63,7 @@ void pcan_led_set_mode( int led, int mode, uint16_t arg )
 static void pcan_led_update_state( int led, uint8_t state )
 {
   uint16_t pin = 0;
+  GPIO_PinState pinState = GPIO_PIN_RESET;
 
   switch( led )
   {
@@ -67,7 +76,14 @@ static void pcan_led_update_state( int led, uint8_t state )
     default:
       return;
   }
-  HAL_GPIO_WritePin( IOPIN_PORT, pin, state ? GPIO_PIN_SET : GPIO_PIN_RESET );
+
+#if defined(HW_CANABLE)   // Active Low
+  pinState = state ? GPIO_PIN_RESET : GPIO_PIN_SET;
+#else
+  pinState = state ? GPIO_PIN_SET : GPIO_PIN_RESET;
+#endif
+
+  HAL_GPIO_WritePin( IOPIN_PORT, pin, pinState );
 }
 
 void pcan_led_poll( void )

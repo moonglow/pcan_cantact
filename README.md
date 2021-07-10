@@ -5,6 +5,7 @@
 * [CANtact](https://github.com/linklayer/cantact-hw) - opensource USB-CAN adapter project `make cantact-16`
 * [CANable](https://canable.io/) - opensource USB-CAN adapter based on CANtact project `make canable`
 * [Entreé](https://github.com/tuna-f1sh/entree) - opensource USB-C CAN adapter based on CANable project `make entree`
+* [UC12](https://github.com/xjtuecho/usbcan) - Dual channel, low-cost, compact USBCAN adapter `make uc12`
 * Any other STM32F042 based boards with external or internal OSC.
 
 ## Toolchain
