@@ -8,57 +8,18 @@ void HAL_MspInit( void )
 {
   __HAL_RCC_SYSCFG_CLK_ENABLE();
   __HAL_RCC_PWR_CLK_ENABLE();
-
+  __HAL_RCC_CRS_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 }
 
-#ifdef EXTERNAL_CLOCK
-void SystemClock_Config(void)
-{
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
-
-
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-
-  /* HSE = 16MHZ */
-#if EXTERNAL_CLOCK == 16
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL3;
-  /* HSE = 8MHZ */
-#elif EXTERNAL_CLOCK == 8
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
-#else
-#error invalid HSE_VALUE
-#endif
-  RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV1;
-
-  HAL_RCC_OscConfig(&RCC_OscInitStruct);
-
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-
-  HAL_RCC_ClockConfig( &RCC_ClkInitStruct, FLASH_LATENCY_1 );
-
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL;
-
-  HAL_RCCEx_PeriphCLKConfig( &PeriphClkInit );
-}
-#else
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
   RCC_PeriphCLKInitTypeDef PeriphClkInit;
+  RCC_CRSInitTypeDef CrsInitStruct;
 
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
@@ -76,8 +37,15 @@ void SystemClock_Config(void)
   PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
   PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
   HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
+
+  CrsInitStruct.Prescaler = RCC_CRS_SYNC_DIV1;
+  CrsInitStruct.Source = RCC_CRS_SYNC_SOURCE_USB;
+  CrsInitStruct.Polarity = RCC_CRS_SYNC_POLARITY_RISING;
+  CrsInitStruct.ReloadValue = RCC_CRS_RELOADVALUE_DEFAULT;
+  CrsInitStruct.ErrorLimitValue = RCC_CRS_ERRORLIMIT_DEFAULT;
+  CrsInitStruct.HSI48CalibrationValue = RCC_CRS_HSI48CALIBRATION_DEFAULT;
+  HAL_RCCEx_CRSConfig(&CrsInitStruct);
 }
-#endif
 
 void SysTick_Handler( void )
 {
