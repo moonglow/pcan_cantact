@@ -13,7 +13,7 @@ static struct
 }
 led_mode_array[LED_TOTAL] = { 0 };
 
-#if defined(HW_CANABLE)
+#if defined(DHW_CANDLELIGHT)
   #define IOPIN_TX    GPIO_PIN_1
   #define IOPIN_RX    GPIO_PIN_0
   #define IOPIN_PORT  GPIOA
@@ -31,7 +31,9 @@ void pcan_led_init( void )
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-  GPIO_InitStruct.Pin = IOPIN_TX | IOPIN_RX;
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  GPIO_InitStruct.Pin = IOPIN_TX |IOPIN_RX;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -77,7 +79,7 @@ static void pcan_led_update_state( int led, uint8_t state )
       return;
   }
 
-#if defined(HW_CANABLE)   // Active Low
+#if defined(DHW_CANDLELIGHT)   // Active Low
   pinState = state ? GPIO_PIN_RESET : GPIO_PIN_SET;
 #else
   pinState = state ? GPIO_PIN_SET : GPIO_PIN_RESET;
