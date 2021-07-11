@@ -79,7 +79,7 @@ static void pcan_led_update_state( int led, uint8_t state )
       return;
   }
 
-#if defined(DHW_CANDLELIGHT)   // Active Low
+#if defined(HW_CANDLELIGHT)   // Active Low
   pinState = state ? GPIO_PIN_RESET : GPIO_PIN_SET;
 #else
   pinState = state ? GPIO_PIN_SET : GPIO_PIN_RESET;
