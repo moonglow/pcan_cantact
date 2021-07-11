@@ -137,7 +137,7 @@ LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BU
 .PHONY : all
 
 # default action: build all
-all: cantact entree canable uc12
+all: cantact entree canable candlelight uc12
 
 cantact: 
 	$(MAKE) BOARD=cantact DEBUG=0 OPT=-Os elf hex bin
@@ -146,7 +146,10 @@ entree:
 	$(MAKE) BOARD=entree DEBUG=0 OPT=-Os elf hex bin
 
 canable: 
-	$(MAKE) BOARD=canable DEBUG=0 OPT=-Os BOARD_FLAGS='-DHW_CANABLE' elf hex bin
+	$(MAKE) BOARD=canable DEBUG=0 OPT=-Os  elf hex bin
+
+candlelight: 
+	$(MAKE) BOARD=candlelight DEBUG=0 OPT=-Os BOARD_FLAGS='-DHW_CANDLELIGHT' elf hex bin
 
 uc12: 
 	$(MAKE) BOARD=uc12 DEBUG=0 OPT=-Os BOARD_FLAGS='-DHW_UC12' elf hex bin
