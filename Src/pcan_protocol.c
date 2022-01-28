@@ -8,6 +8,8 @@
 #include "pcan_timestamp.h"
 #include "punker.h"
 
+#define SJA1000_BASICCAN  0
+#define SJA1000_PELICAN   1
 static struct
 {
   uint8_t bus_active;
@@ -29,10 +31,11 @@ static struct
     uint8_t   silient;
     uint8_t   loopback;
     uint8_t   err_mask;
-    uint8_t   sja1000_mode;
     uint32_t  quartz_freq;
   }
   can;
+  uint8_t   sja1000_shadow[6];
+  uint8_t   sja1000_ic_mode;
   uint8_t   device_id;
   uint32_t  device_serial;
 }
@@ -71,6 +74,118 @@ static struct t_m2h_fsm data_fsm =
 };
 
 static PCAN_RECORD_BUFFER_EX pcan_records;
+
+void pcan_sja1000_write( uint8_t reg_addr, uint8_t value )
+{
+  if( pcan_device.sja1000_ic_mode == SJA1000_PELICAN )
+  {
+    reg_addr &= 0x7F;
+    switch( reg_addr )
+    {
+      case 6:
+        pcan_device.sja1000_shadow[2] = value;
+      break;
+      case 7:
+        pcan_device.sja1000_shadow[3] = value;
+      break;
+      case 14:
+        pcan_device.sja1000_shadow[4] = value;
+      break;
+      case 15:
+        pcan_device.sja1000_shadow[5] = ( value == 0xFF ) ? 0x7F: value;
+      break;
+      case 16:
+        pcan_device.sja1000_shadow[0] = value;
+      break;
+      case 20:
+        pcan_device.sja1000_shadow[1] = value;
+      break;
+      case 31:
+        if( (value & 0x80 ) == 0 )
+        {
+          pcan_device.sja1000_ic_mode = SJA1000_BASICCAN;
+        }
+      break;
+    }
+  }
+  else if( pcan_device.sja1000_ic_mode == SJA1000_BASICCAN )
+  {
+    reg_addr &= 0x1F;
+    switch( reg_addr )
+    {
+      case 4:
+        pcan_device.sja1000_shadow[0] = value;
+      break;
+      case 5:
+        pcan_device.sja1000_shadow[1] = value;
+      break;
+      case 6:
+        pcan_device.sja1000_shadow[2] = value;
+      break;
+      case 7:
+        pcan_device.sja1000_shadow[3] = value;
+      break;
+      case 31:
+        if( (value & 0x80 ) != 0 )
+        {
+          pcan_device.sja1000_ic_mode = SJA1000_PELICAN;
+        }
+      break;
+    }
+  }
+}
+
+uint8_t pcan_sja1000_read( uint8_t reg_addr )
+{
+  if( pcan_device.sja1000_ic_mode == SJA1000_PELICAN )
+  {
+    reg_addr &= 0x7F;
+    switch( reg_addr )
+    {
+      case 0:
+        return 0x01;
+      case 6:
+        return pcan_device.sja1000_shadow[2];
+      case 7:
+        return pcan_device.sja1000_shadow[3];
+      case 14:
+        return pcan_device.sja1000_shadow[4];
+      case 15:
+        return pcan_device.sja1000_shadow[5];
+      case 16:
+        return pcan_device.sja1000_shadow[0];
+      case 20:
+        return pcan_device.sja1000_shadow[1];
+      case 31:
+        return 0x80; /* PeliCAN mode */
+      default:
+        return 0;
+    }
+  }
+  else if( pcan_device.sja1000_ic_mode == SJA1000_BASICCAN )
+  {
+    reg_addr &= 0x1F;
+    switch( reg_addr )
+    {
+      case 0:
+        return 0x01;
+      case 4:
+        return pcan_device.sja1000_shadow[0];
+      case 5:
+        return pcan_device.sja1000_shadow[1];
+      case 6:
+        return pcan_device.sja1000_shadow[2];
+      case 7:
+        return pcan_device.sja1000_shadow[3];
+      case 31:
+        return 0x00; /* BasicCAN mode */
+      default:
+        return 0;
+    }
+  }
+
+  return 0;
+}
 
 void pcan_record_write_header( uint8_t *p )
 {
@@ -517,7 +632,7 @@ void pcan_protocol_process_command( uint8_t *ptr, uint16_t size )
       switch( cmd->function )
       {
         /* set mass storage mode */
-        case 0xC8:
+        case PCAN_USB_SETCAN2FLASH:
         break;
       }
     break;
@@ -525,7 +640,7 @@ void pcan_protocol_process_command( uint8_t *ptr, uint16_t size )
       switch( cmd->function )
       {
         /*  CAN silient control*/
-        case 0x03:
+        case PCAN_USB_SET_SILENT_MODE:
           pcan_device.can.silient = cmd->param[0];
           pcan_can_set_silent( pcan_device.can.silient );
         break;
@@ -535,13 +650,13 @@ void pcan_protocol_process_command( uint8_t *ptr, uint16_t size )
       switch( cmd->function )
       {
         /* BTR0 BTR1 */
-        case 0x01:
+        case PCAN_USB_CMD_BITRATE:
           pcan_device.can.btr0 = cmd->param[1];
           pcan_device.can.btr1 = cmd->param[0];
           pcan_set_bitrate( cmd->param );
         break;
         /* set CAN on/off*/
-        case 0x03:
+        case PCAN_USB_CMD_BUS:
           pcan_device.bus_active = cmd->param[0];
           pcan_led_set_mode( LED_STAT, pcan_device.bus_active ? LED_MODE_BLINK_SLOW:LED_MODE_OFF, 0 );
           pcan_can_set_bus_active( pcan_device.bus_active );
@@ -557,26 +672,26 @@ void pcan_protocol_process_command( uint8_t *ptr, uint16_t size )
           pcan_led_set_mode( LED_CH0_RX, pcan_device.bus_active ? LED_MODE_OFF:LED_MODE_ON, 0 );
         break;
         /* set device id 0-255 */
-        case 0x04:
+        case PCAN_USB_CMD_DEVID:
           pcan_device.device_id = cmd->param[0];
         break;
         /* unknown windows driver call */
-        case 0x05:
+        case PCAN_USB_CMD_CFG:
         break;
-        /* sja1000 mode */
-        case 0x09:
-          pcan_device.can.sja1000_mode = cmd->param[0];
+        /* sja1000 reg write */
+        case PCAN_USB_CMD_REGISTER:
+          pcan_sja1000_write( cmd->param[0], cmd->param[1] );
         break;
         /* ext VCC on/off */
-        case 0x0A:
+        case PCAN_USB_CMD_EXT_VCC:
           pcan_device.ext_vcc_state = cmd->param[0];
         break;
         /* error frame mask */
-        case 0x0B:
+        case PCAN_USB_CMD_ERR_FR:
           pcan_device.can.err_mask = cmd->param[0];
         break;
         /* set led mode */
-        case 0x0C:
+        case PCAN_USB_CMD_LED:
           pcan_device.led_mode = cmd->param[0];
         break;
       }
@@ -585,20 +700,20 @@ void pcan_protocol_process_command( uint8_t *ptr, uint16_t size )
       switch( cmd->function )
       {
         /* BTR0 BTR1 */
-        case 0x01:
+        case PCAN_USB_CMD_BITRATE:
           cmd->param[1] = pcan_device.can.btr0;
           cmd->param[0] = pcan_device.can.btr1;
           pcan_usb_send_command_buffer( cmd, sizeof( PCAN_USB_PARAM ) );
         break;
         /* quarts freq in Mhz */
-        case 0x02:
+        case PCAN_USB_CMD_CLOCK:
         {
           cmd->param[0] = pcan_device.can.quartz_freq/1000000u;
           pcan_usb_send_command_buffer( cmd, sizeof( PCAN_USB_PARAM ) );
         }
         break;
         /* get device id */
-        case 0x04:
+        case PCAN_USB_CMD_DEVID:
         {
           /* default: 255 */
           cmd->param[0] = pcan_device.device_id;
@@ -606,7 +721,7 @@ void pcan_protocol_process_command( uint8_t *ptr, uint16_t size )
         }
         break;
         /* serial */
-        case 0x06:
+        case PCAN_USB_CMD_SN:
         {
           /* default: 4 bytes FFFFFFFF */
           cmd->param[0] = (pcan_device.device_serial>>0x18)&0xFF;
@@ -616,8 +731,13 @@ void pcan_protocol_process_command( uint8_t *ptr, uint16_t size )
           pcan_usb_send_command_buffer( cmd, sizeof( PCAN_USB_PARAM ) );
         }
         break;
+        /* sja1000 reg read */
+        case PCAN_USB_CMD_REGISTER:
+          cmd->param[1] = pcan_sja1000_read( cmd->param[0] );
+          pcan_usb_send_command_buffer( cmd, sizeof( PCAN_USB_PARAM ) );
+        break;
         /* get led */
-        case 0x0C:
+        case PCAN_USB_CMD_LED:
           cmd->param[0] = pcan_device.led_mode;
           pcan_usb_send_command_buffer( cmd, sizeof( PCAN_USB_PARAM ) );
         break;
@@ -683,6 +803,7 @@ void pcan_protocol_process_data( uint8_t *ptr, uint16_t size )
 
 void pcan_protocol_init( void )
 {
+  pcan_device.sja1000_ic_mode = SJA1000_PELICAN;
   pcan_record_buffer_reset( &pcan_records );
   pcan_can_init();
   pcan_can_install_rx_callback( pcan_rx_message  );

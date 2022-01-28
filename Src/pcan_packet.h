@@ -19,6 +19,24 @@ PCAN_USB_PARAM;
 #define PCAN_USB_SET      0x02
 #define PCAN_USB_EX3      0x03
 
+/* PCAN-USB commands */
+#define PCAN_USB_CMD_BITRATE	1
+#define PCAN_USB_CMD_CLOCK	  2
+#define PCAN_USB_CMD_BUS	    3
+#define PCAN_USB_CMD_DEVID	  4
+#define PCAN_USB_CMD_CFG		  5
+#define PCAN_USB_CMD_SN		    6
+#define PCAN_USB_CMD_REGISTER	9
+#define PCAN_USB_CMD_EXT_VCC	10
+#define PCAN_USB_CMD_ERR_FR	  11
+#define PCAN_USB_CMD_LED	    12
+#define PCAN_USB_CMD_DEVDATA	30
+/* USB Mass Storage Mode command (FW >= 8.3.0) */
+#define	PCAN_USB_SETCAN2FLASH		0xC8
+
+/* PCAN_USB_CMD_BUS PCAN_USB_SET extension: */
+#define PCAN_USB_SET_SILENT_MODE	3
+
 /* PCAN-USB rx/tx buffers size */
 #define PCAN_USB_RX_BUFFER_SIZE    64
 #define PCAN_USB_TX_BUFFER_SIZE    64
@@ -44,6 +62,18 @@ PCAN_USB_PARAM;
 #define PCAN_USB_ERROR_RXQEMPTY    0x20
 #define PCAN_USB_ERROR_QOVR        0x40
 #define PCAN_USB_ERROR_TXQFULL     0x80
+
+/* SJA1000 registers */
+#define SJA1000_MOD     0	/* mode register */
+#define SJA1000_CMR		  1
+#define SJA1000_SR		  2
+#define SJA1000_IR		  3
+#define SJA1000_IER		  4	/* acceptance code */
+#define SJA1000_BTR0		6	/* bus timing 0 */
+#define SJA1000_BTR1		7	/* bus timing 1 */
+#define SJA1000_OCR		  8	/* output control */
+#define SJA1000_TR		  9
+#define SJA1000_CDR     31
 
 /* SJA1000 modes */
 #define SJA1000_MODE_NORMAL        0x00
