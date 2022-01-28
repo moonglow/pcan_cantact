@@ -2,6 +2,7 @@
 #include "stm32f0xx_hal.h"
 #include "pcan_timestamp.h"
 #include "pcan_led.h"
+#include "pcan_varian.h"
 
 static struct
 {
@@ -13,21 +14,16 @@ static struct
 }
 led_mode_array[LED_TOTAL] = { 0 };
 
-#define IOPIN_TX    GPIO_PIN_1
-#define IOPIN_RX    GPIO_PIN_0
-#define IOPIN_PORT  GPIOB
-
 void pcan_led_init( void )
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-
-  GPIO_InitStruct.Pin = IOPIN_TX |IOPIN_RX;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init( IOPIN_PORT, &GPIO_InitStruct );
+#ifdef IOPIN_TX
+  PIN_ENABLE_CLOCK( IOPIN_TX );
+  PIN_INIT( IOPIN_TX );
+#endif
+#ifdef IOPIN_RX
+  PIN_ENABLE_CLOCK( IOPIN_RX );
+  PIN_INIT( IOPIN_RX );
+#endif
 }
 
 void pcan_led_set_mode( int led, int mode, uint16_t arg )
@@ -54,20 +50,22 @@ void pcan_led_set_mode( int led, int mode, uint16_t arg )
 
 static void pcan_led_update_state( int led, uint8_t state )
 {
-  uint16_t pin = 0;
-
   switch( led )
   {
+#ifdef IOPIN_TX
     case LED_CH0_TX:
-      pin = IOPIN_TX;
+      state ? (LED_ON( IOPIN_TX )): (LED_OFF( IOPIN_TX ));
     break;
+#endif
+#ifdef IOPIN_RX
     case LED_CH0_RX:
-      pin = IOPIN_RX;
+      state ? (LED_ON( IOPIN_RX )): (LED_OFF( IOPIN_RX ));
     break;
+#endif
     default:
+      (void)state;
       return;
   }
-  HAL_GPIO_WritePin( IOPIN_PORT, pin, state ? GPIO_PIN_SET : GPIO_PIN_RESET );
 }
 
 void pcan_led_poll( void )

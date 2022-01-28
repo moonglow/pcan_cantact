@@ -3,6 +3,7 @@
 #include "pcan_led.h"
 #include "pcan_protocol.h"
 #include "pcan_usb.h"
+#include "pcan_varian.h"
 
 void HAL_MspInit( void )
 {
@@ -14,31 +15,25 @@ void HAL_MspInit( void )
   __HAL_RCC_GPIOB_CLK_ENABLE();
 }
 
-#ifdef EXTERNAL_CLOCK
+#if ( HSE_VALUE != 0 )
 void SystemClock_Config(void)
 {
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
+  /* enable HSE */
+   __HAL_RCC_HSE_CONFIG(RCC_HSE_ON);
+  while( __HAL_RCC_GET_FLAG(RCC_FLAG_HSERDY) == RESET );
 
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-
-  /* HSE = 16MHZ */
-#if EXTERNAL_CLOCK == 16
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL3;
-  /* HSE = 8MHZ */
-#elif EXTERNAL_CLOCK == 8
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
-#else
-#error invalid HSE_VALUE
+  /* enable PLL */
+  __HAL_RCC_PLL_DISABLE();
+  while( __HAL_RCC_GET_FLAG(RCC_FLAG_PLLRDY)  != RESET );
+#if ( HSE_VALUE == 16000000 )
+  __HAL_RCC_PLL_CONFIG( RCC_PLLSOURCE_HSE, RCC_PREDIV_DIV1, RCC_PLL_MUL3 );
+#elif ( HSE_VALUE == 8000000 )
+  __HAL_RCC_PLL_CONFIG( RCC_PLLSOURCE_HSE, RCC_PREDIV_DIV1, RCC_PLL_MUL6 );
 #endif
-  RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV1;
-
-  HAL_RCC_OscConfig(&RCC_OscInitStruct);
+  __HAL_RCC_PLL_ENABLE();
+  while( __HAL_RCC_GET_FLAG(RCC_FLAG_PLLRDY)  == RESET );
 
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1;
@@ -48,22 +43,16 @@ void SystemClock_Config(void)
 
   HAL_RCC_ClockConfig( &RCC_ClkInitStruct, FLASH_LATENCY_1 );
 
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL;
-
-  HAL_RCCEx_PeriphCLKConfig( &PeriphClkInit );
+  __HAL_RCC_USB_CONFIG( RCC_USBCLKSOURCE_PLL );
 }
 #else
 void SystemClock_Config(void)
 {
-  RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
-  RCC_PeriphCLKInitTypeDef PeriphClkInit;
+  RCC_CRSInitTypeDef RCC_CRSInitStruct = {0};
 
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48;
-  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-  HAL_RCC_OscConfig(&RCC_OscInitStruct);
+  __HAL_RCC_HSI48_ENABLE();
+  while(__HAL_RCC_GET_FLAG(RCC_FLAG_HSI48RDY) == RESET );
 
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
     |RCC_CLOCKTYPE_PCLK1;
@@ -72,10 +61,19 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1);
 
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB|RCC_PERIPHCLK_I2C1;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
-  PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
-  HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
+  __HAL_RCC_USB_CONFIG( RCC_USBCLKSOURCE_HSI48 );
+
+  /* CRS */
+  __HAL_RCC_CRS_CLK_ENABLE();
+  
+  RCC_CRSInitStruct.Prescaler = RCC_CRS_SYNC_DIV1;
+  RCC_CRSInitStruct.Source = RCC_CRS_SYNC_SOURCE_USB;
+  RCC_CRSInitStruct.Polarity = RCC_CRS_SYNC_POLARITY_RISING;
+  RCC_CRSInitStruct.ReloadValue = __HAL_RCC_CRS_RELOADVALUE_CALCULATE( 48000000, 1000 );
+  RCC_CRSInitStruct.ErrorLimitValue = RCC_CRS_ERRORLIMIT_DEFAULT;
+  RCC_CRSInitStruct.HSI48CalibrationValue = RCC_CRS_HSI48CALIBRATION_DEFAULT;
+
+  HAL_RCCEx_CRSConfig( &RCC_CRSInitStruct );
 }
 #endif
 
@@ -87,8 +85,11 @@ void SysTick_Handler( void )
 int main( void )
 {
   HAL_Init();
+  HAL_IncTick();
 
   SystemClock_Config();
+
+  pcan_variant_io_init();
 
   pcan_usb_init();
   pcan_led_init();

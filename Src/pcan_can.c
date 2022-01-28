@@ -1,9 +1,9 @@
-
 #include <stm32f0xx_hal.h>
 #include <string.h>
 #include <assert.h>
 #include "pcan_can.h"
 #include "pcan_timestamp.h"
+#include "pcan_varian.h"
 
 #define CAN_TX_FIFO_SIZE (100)
 static CAN_HandleTypeDef g_hcan = { .Instance = CAN };
@@ -36,18 +36,15 @@ can_dev = { 0 };
 
 void pcan_can_init(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = { 0 };
   CAN_FilterTypeDef filter = { 0 };
 
   __HAL_RCC_CAN1_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF4_CAN;
-  HAL_GPIO_Init( GPIOB, &GPIO_InitStruct );
+  PIN_ENABLE_CLOCK( CAN_RX );
+  PIN_ENABLE_CLOCK( CAN_TX );
+
+  PIN_INIT( CAN_RX );
+  PIN_INIT( CAN_TX );
 
   HAL_CAN_DeInit( &g_hcan );
 

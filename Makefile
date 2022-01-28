@@ -10,7 +10,7 @@
 # target
 ######################################
 TARGET = pcan_$(BOARD)_hw
-
+TARGET_VARIANT = $(shell echo $(BOARD) | tr  '[:lower:]' '[:upper:]')
 
 #######################################
 # paths
@@ -112,7 +112,9 @@ C_INCLUDES =  \
 # compile gcc flags
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fno-common -fdata-sections -ffunction-sections
 
-CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -Wpedantic -Wextra -fno-common -fdata-sections -ffunction-sections -std=c99 $(BOARD_FLAGS)
+CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -Wpedantic -Wextra -fno-common -fdata-sections -ffunction-sections -std=c99 \
+$(BOARD_FLAGS) \
+-D$(TARGET_VARIANT)
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -gdwarf-2
@@ -137,19 +139,22 @@ LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BU
 .PHONY : all
 
 # default action: build all
-all: cantact-16 cantact-8 entree canable
+all: cantact_16 cantact_8 entree canable
 
-cantact-16: 
-	$(MAKE) BOARD=cantact-16 DEBUG=0 OPT=-Os BOARD_FLAGS='-DEXTERNAL_CLOCK=16 -DHSE_VALUE=16000000' elf hex bin
+cantact_16:
+	$(MAKE) BOARD=cantact_16 DEBUG=0 OPT=-Os BOARD_FLAGS='-DHSE_VALUE=16000000' elf hex bin
 
-cantact-8: 
-	$(MAKE) BOARD=cantact-8 DEBUG=0 OPT=-Os BOARD_FLAGS='-DEXTERNAL_CLOCK=8 -DHSE_VALUE=8000000' elf hex bin
+cantact_8:
+	$(MAKE) BOARD=cantact_8 DEBUG=0 OPT=-Os BOARD_FLAGS='-DHSE_VALUE=8000000' elf hex bin
 
-entree: 
-	$(MAKE) BOARD=entree DEBUG=0 OPT=-Os elf hex bin
+entree:
+	$(MAKE) BOARD=entree DEBUG=0 OPT=-Os BOARD_FLAGS='-DHSE_VALUE=0' elf hex bin
 
 canable: 
-	$(MAKE) BOARD=canable DEBUG=0 OPT=-Os elf hex bin
+	$(MAKE) BOARD=canable DEBUG=0 OPT=-Os BOARD_FLAGS='-DHSE_VALUE=0' elf hex bin
+
+ollie:
+	$(MAKE) BOARD=ollie DEBUG=0 OPT=-Os BOARD_FLAGS='-DHSE_VALUE=0' elf hex bin
 
 #######################################
 # build the application
