@@ -11,6 +11,6 @@ jobs:
     steps:
     - name: arm-none-eabi-gcc
     - uses: fiam/arm-none-eabi-gcc@v1.0.2
-    with:
-      release: '9-2019-q4'
+      with:
+        release: '9-2019-q4'
     - run: make
