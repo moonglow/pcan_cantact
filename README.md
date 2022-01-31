@@ -1,5 +1,7 @@
 # PEAK PCAN firmware for STM32F042 based boards
 
+![build workflow](https://github.com/moonglow/pcan_cantact/actions/workflows/firmware_build.yml/badge.svg)
+
 ## Target Hardware
 
 * [CANtact](https://github.com/linklayer/cantact-hw) - opensource USB-CAN adapter project `make cantact_16`
