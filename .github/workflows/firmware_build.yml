@@ -16,7 +16,7 @@ jobs:
       - name: arm-none-eabi-gcc
         uses: fiam/arm-none-eabi-gcc@v1
         with:
-          release: '9-2019-q4'
+          release: '10-2020-q4'
 
       - name: build firmware...
         run: make
