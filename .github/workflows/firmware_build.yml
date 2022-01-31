@@ -9,8 +9,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: arm-none-eabi-gcc
-    - uses: fiam/arm-none-eabi-gcc@v1.0.2
-      with:
-        release: '9-2019-q4'
-    - run: make
+      - name: arm-none-eabi-gcc
+      - uses: fiam/arm-none-eabi-gcc@v1.0.2
+        with:
+          release: '9-2019-q4'
+      - run: make
