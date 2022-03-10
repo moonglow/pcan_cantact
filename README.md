@@ -1,4 +1,6 @@
-# XCAN firmware for STM32F042 based boards
+# !ACHTUNG! READ FIRST [COPYRIGHT ISSUE](https://github.com/moonglow/pcan_cantact/issues/18)
+
+## XCAN firmware for STM32F042 based boards
 
 ![build workflow](https://github.com/moonglow/pcan_cantact/actions/workflows/firmware_build.yml/badge.svg)
 
